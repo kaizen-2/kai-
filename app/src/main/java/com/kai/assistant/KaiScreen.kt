@@ -1,160 +1,132 @@
 package com.kai.assistant
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+enum class Screen(val label: String) {
+    HOME("Home"),
+    CHATS("Chats"),
+    DEVICE("Device"),
+    MEMORY("Memory"),
+    ACTIVITY("Log"),
+    SETTINGS("Settings")
+}
+
 @Composable
-fun KaiScreen(viewModel: KaiViewModel, onMicTapped: () -> Unit) {
-    val state = viewModel.state
-    val accent by animateColorAsState(state.color(), tween(400), label = "accent")
+fun KaiApp(viewModel: KaiViewModel, onMicTapped: () -> Unit) {
+    val colors = darkColorScheme(
+        primary = KaiCyan,
+        onPrimary = KaiNavy,
+        secondary = KaiBlue,
+        background = KaiNavy,
+        onBackground = Color.White,
+        surface = PanelBg,
+        onSurface = Color.White,
+        onSurfaceVariant = Color(0xB3FFFFFF),
+        outline = KaiCyan.copy(alpha = 0.4f),
+        error = KaiRed
+    )
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF02040C), KaiNavy, Color(0xFF0A1530))
-                )
-            )
-    ) {
+    MaterialTheme(colorScheme = colors) {
+        var screen by remember { mutableStateOf(Screen.HOME) }
+
+        BackHandler(enabled = screen != Screen.HOME) { screen = Screen.HOME }
+
         Column(
-            modifier = Modifier.fillMaxSize().padding(vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(listOf(Color(0xFF02040C), KaiNavy, Color(0xFF0A1530))))
         ) {
-            // Top bar: title and microphone indicator
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "K A I",
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Light,
-                    letterSpacing = 6.sp
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (state == KaiState.LISTENING) "● MIC LIVE" else " ",
-                    color = KaiRed,
-                    fontSize = 12.sp,
-                    letterSpacing = 3.sp
-                )
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when (screen) {
+                    Screen.HOME -> HomeScreen(viewModel, onMicTapped)
+                    Screen.CHATS -> ChatsScreen(viewModel, onGoHome = { screen = Screen.HOME })
+                    Screen.DEVICE -> DeviceScreen(viewModel)
+                    Screen.MEMORY -> MemoryScreen(viewModel)
+                    Screen.ACTIVITY -> ActivityScreen(viewModel)
+                    Screen.SETTINGS -> SettingsScreen(viewModel)
+                }
             }
+            NavBar(current = screen, onSelect = { screen = it })
+        }
 
-            // Orb, waveform and status
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                KaiOrb(state = state, level = viewModel.level)
-                Spacer(Modifier.height(8.dp))
-                KaiWaveform(state = state, level = viewModel.level)
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = state.label,
-                    color = accent,
-                    fontSize = 13.sp,
-                    letterSpacing = 5.sp
-                )
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = viewModel.caption,
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 32.dp).heightIn(min = 56.dp)
-                )
-                Text(
-                    text = if (viewModel.userText.isNotBlank()) "You: ${viewModel.userText}" else " ",
-                    color = Color.White.copy(alpha = 0.55f),
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp).heightIn(min = 40.dp)
-                )
-            }
-
-            // Mic / stop button
-            val active = state == KaiState.LISTENING || state == KaiState.SPEAKING || state == KaiState.THINKING
-            Box(
-                modifier = Modifier
-                    .size(76.dp)
-                    .clip(CircleShape)
-                    .background(accent.copy(alpha = 0.12f))
-                    .border(2.dp, accent, CircleShape)
-                    .clickable {
-                        if (active) viewModel.stopAll() else onMicTapped()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                MicIcon(color = accent, stop = active)
-            }
+        // Anything that leaves the app needs an explicit yes.
+        viewModel.confirmation?.let { pending ->
+            AlertDialog(
+                onDismissRequest = { viewModel.denyTool() },
+                title = { Text(pending.plan.title) },
+                text = { Text("Kai wants to: ${pending.plan.description}") },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.confirmTool() }) { Text("Allow", color = KaiCyan) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.denyTool() }) { Text("Cancel") }
+                }
+            )
         }
     }
 }
 
 @Composable
-private fun MicIcon(color: Color, stop: Boolean) {
-    Canvas(modifier = Modifier.size(30.dp)) {
-        val w = size.width
-        val h = size.height
-        if (stop) {
-            drawRoundRect(
-                color = color,
-                topLeft = Offset(w * 0.2f, h * 0.2f),
-                size = Size(w * 0.6f, h * 0.6f),
-                cornerRadius = CornerRadius(6f, 6f)
-            )
-        } else {
-            drawRoundRect(
-                color = color,
-                topLeft = Offset(w * 0.34f, 0f),
-                size = Size(w * 0.32f, h * 0.6f),
-                cornerRadius = CornerRadius(w * 0.16f, w * 0.16f)
-            )
-            drawArc(
-                color = color,
-                startAngle = 0f,
-                sweepAngle = 180f,
-                useCenter = false,
-                topLeft = Offset(w * 0.18f, h * 0.2f),
-                size = Size(w * 0.64f, h * 0.55f),
-                style = Stroke(width = 3f, cap = StrokeCap.Round)
-            )
-            drawLine(
-                color = color,
-                start = Offset(w * 0.5f, h * 0.75f),
-                end = Offset(w * 0.5f, h),
-                strokeWidth = 3f,
-                cap = StrokeCap.Round
-            )
+private fun NavBar(current: Screen, onSelect: (Screen) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF03060F))
+            .border(1.dp, KaiCyan.copy(alpha = 0.15f))
+    ) {
+        Screen.values().forEach { s ->
+            val selected = s == current
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSelect(s) }
+                    .padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 20.dp, height = 3.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (selected) KaiCyan else Color.Transparent)
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = s.label,
+                    color = if (selected) KaiCyan else Muted,
+                    fontSize = 11.sp,
+                    maxLines = 1
+                )
+            }
         }
     }
 }

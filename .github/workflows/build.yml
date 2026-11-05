@@ -3,6 +3,8 @@ name: Build Kai APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "README.md"
   workflow_dispatch:
 
 permissions:
@@ -26,9 +28,25 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
+      - name: Give the APK a unique name
+        id: apk
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          NAME="Kai-v${VERSION}-build${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
       - name: Publish APK to Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Kai build ${{ github.run_number }}
-          files: app/build/outputs/apk/debug/app-debug.apk
+          make_latest: true
+          body: |
+            Download the .apk file below on your phone, then tap it to install.
+
+            If Android says "App not installed", uninstall the old Kai first
+            (long-press the Kai icon, then Uninstall) and install again.
+            Builds from number 2 onward are signed with the same key, so
+            after that they install over the top of each other.
+          files: ${{ steps.apk.outputs.name }}

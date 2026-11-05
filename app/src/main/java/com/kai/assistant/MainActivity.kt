@@ -2,6 +2,7 @@ package com.kai.assistant
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,14 +20,16 @@ class MainActivity : ComponentActivity() {
         if (granted) {
             viewModel.startListening()
         } else {
-            viewModel.showMessage("Microphone permission denied. I can't hear you without it.")
+            viewModel.showMessage("Microphone permission denied. I can't hear you without it, but you can still type.")
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.parseColor("#02040C")
+        window.navigationBarColor = Color.parseColor("#03060F")
         setContent {
-            KaiScreen(
+            KaiApp(
                 viewModel = viewModel,
                 onMicTapped = ::onMicTapped
             )

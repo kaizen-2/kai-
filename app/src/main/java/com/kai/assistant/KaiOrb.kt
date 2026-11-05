@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.abs
@@ -42,11 +43,13 @@ fun KaiState.color(): Color = when (this) {
     KaiState.LISTENING -> Color(0xFF7DF9FF)
     KaiState.THINKING -> KaiIndigo
     KaiState.SPEAKING -> KaiCyan
+    KaiState.EXECUTING -> KaiBlue
+    KaiState.CONFIRMATION -> Color(0xFFFFC107)
     KaiState.ERROR -> KaiRed
 }
 
 @Composable
-fun KaiOrb(state: KaiState, level: Float, modifier: Modifier = Modifier) {
+fun KaiOrb(state: KaiState, level: Float, modifier: Modifier = Modifier, orbSize: Dp = 300.dp) {
     val color by animateColorAsState(state.color(), tween(400), label = "orbColor")
 
     // How alive the orb looks in each state
@@ -56,6 +59,8 @@ fun KaiOrb(state: KaiState, level: Float, modifier: Modifier = Modifier) {
             KaiState.LISTENING -> 0.9f
             KaiState.THINKING -> 0.8f
             KaiState.SPEAKING -> 1.0f
+            KaiState.EXECUTING -> 0.9f
+            KaiState.CONFIRMATION -> 0.7f
             KaiState.ERROR -> 0.3f
         },
         animationSpec = tween(400),
@@ -85,9 +90,9 @@ fun KaiOrb(state: KaiState, level: Float, modifier: Modifier = Modifier) {
         animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing)),
         label = "spinFast"
     )
-    val spin = if (state == KaiState.THINKING) spinFast else spinSlow
+    val spin = if (state == KaiState.THINKING || state == KaiState.EXECUTING) spinFast else spinSlow
 
-    Canvas(modifier = modifier.size(300.dp)) {
+    Canvas(modifier = modifier.size(orbSize)) {
         val c = center
         val r = size.minDimension / 2f
         val breathe = 1f + (pulse - 1f) * energy * 2f + smoothLevel * 0.25f
@@ -176,6 +181,8 @@ fun KaiWaveform(state: KaiState, level: Float, modifier: Modifier = Modifier) {
             KaiState.LISTENING -> 0.12f + smoothLevel * 0.88f
             KaiState.THINKING -> 0.2f
             KaiState.SPEAKING -> 0.75f
+            KaiState.EXECUTING -> 0.3f
+            KaiState.CONFIRMATION -> 0.1f
             KaiState.ERROR -> 0.05f
         },
         animationSpec = tween(150),
